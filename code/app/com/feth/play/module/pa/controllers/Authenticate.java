@@ -1,5 +1,6 @@
 package com.feth.play.module.pa.controllers;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import play.mvc.Controller;
 import play.mvc.Http.Response;
 import play.mvc.Result;
@@ -18,14 +19,22 @@ public class Authenticate extends Controller {
 		response.setHeader(Response.EXPIRES, "0");  // Proxies.
 	}
 
-	public static Result authenticate(final String provider) {
-		noCache(response());
-		final String payload = request().getQueryString(PAYLOAD_KEY);
-		return PlayAuthenticate.handleAuthentication(provider, ctx(), payload);
-	}
+    public static Result authenticate(final String provider) {
+        noCache(response());
+        final String payload = request().getQueryString(PAYLOAD_KEY);
+        return PlayAuthenticate.handleAuthentication(provider, ctx(), payload);
+    }
+
+    public static ObjectNode authenticateJson(final String provider, final String originalUrl) {
+        noCache(response());
+        final String payload = request().getQueryString(PAYLOAD_KEY);
+        PlayAuthenticate.putOriginalUrl(ctx(), originalUrl);
+        return PlayAuthenticate.handleAuthenticationJson(provider, ctx(), payload);
+    }
 
 	public static Result logout() {
 		noCache(response());
 		return PlayAuthenticate.logout(session());
 	}
 }
+

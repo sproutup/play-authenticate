@@ -188,6 +188,7 @@ public abstract class OAuth2AuthProvider<U extends AuthUserIdentity, I extends O
 			}
 		} else if (isCallbackRequest(context)) {
 			// second step in auth process
+            Logger.debug("Second step in auth...");
             final UUID storedState = PlayAuthenticate.getFromCache(context.session(), STATE_TOKEN);
             if(storedState == null) {
                 Logger.warn("Cache either timed out, or you are using a setup with multiple servers and a non-shared cache implementation");
@@ -204,6 +205,7 @@ public abstract class OAuth2AuthProvider<U extends AuthUserIdentity, I extends O
             return transform(info, callbackState);
 		} else {
 			// no auth, yet
+            Logger.debug("First step in auth...generate redirect url");
             return generateRedirectUrl(context, request);
 		}
 	}
