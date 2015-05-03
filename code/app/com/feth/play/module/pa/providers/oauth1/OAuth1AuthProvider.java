@@ -1,13 +1,19 @@
 package com.feth.play.module.pa.providers.oauth1;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import play.Application;
 import play.Configuration;
 import play.Logger;
 import play.libs.F;
+import play.libs.Json;
 import play.libs.oauth.OAuth;
 import play.libs.oauth.OAuth.OAuthCalculator;
 import play.libs.oauth.OAuth.ConsumerKey;
@@ -38,7 +44,9 @@ public abstract class OAuth1AuthProvider<U extends AuthUserIdentity, I extends O
 	protected abstract I buildInfo(final RequestToken rtoken)
 			throws AccessTokenException;
 
-	@Override
+    private static ObjectMapper mapper = new ObjectMapper(); // can reuse, share globally
+
+    @Override
 	protected List<String> neededSettingKeys() {
 		final List<String> ret = new ArrayList<String>();
 		ret.addAll(super.neededSettingKeys());
@@ -64,14 +72,6 @@ public abstract class OAuth1AuthProvider<U extends AuthUserIdentity, I extends O
 		public static final String OAUTH_VERIFIER = "oauth_verifier";
 		public static final String OAUTH_PROBLEM = "oauth_problem";
         public static final String OAUTH_ACCESS_DENIED = "access_denied";
-	}
-
-	public static class SerializableRequestToken extends RequestToken implements Serializable {
-		private static final long serialVersionUID = 1L;
-
-		public SerializableRequestToken(RequestToken source) {
-			super(source.token, source.secret);
-		}
 	}
 
     protected void checkError(Request request) throws AuthException{
@@ -114,9 +114,18 @@ public abstract class OAuth1AuthProvider<U extends AuthUserIdentity, I extends O
         checkError(request);
 
         if (uri.contains(Constants.OAUTH_VERIFIER)) {
+            RequestToken rtoken;
+            final ObjectReader reader = mapper.reader();
+            try {
+                String rtoken_string = PlayAuthenticate
+                        .removeFromCache(context.session(), CACHE_TOKEN);
+                JsonNode rtoken_json = reader.readTree(rtoken_string);
+                rtoken = new RequestToken(rtoken_json.path("token").asText(), rtoken_json.path("secret").asText());
+            } catch (IOException ex) {
+                throw new AuthException(ex
+                        .getLocalizedMessage());
+            }
 
-			final RequestToken rtoken = (RequestToken) PlayAuthenticate
-					.removeFromCache(context.session(), CACHE_TOKEN);
 			final String verifier = request.getQueryString(Constants.OAUTH_VERIFIER);
 			try {
 				final RequestToken response = service
@@ -138,8 +147,11 @@ public abstract class OAuth1AuthProvider<U extends AuthUserIdentity, I extends O
 				final String token = response.token;
 				final String redirectUrl = service.redirectUrl(token);
 
+                ObjectNode response_json = Json.newObject();
+                response_json.put("token", response.token);
+                response_json.put("secret", response.secret);
 				PlayAuthenticate.storeInCache(context.session(), CACHE_TOKEN,
-						new SerializableRequestToken(response));
+                        response_json.toString());
 				return redirectUrl;
 			} catch (RuntimeException ex) {
 				// Exception happened
