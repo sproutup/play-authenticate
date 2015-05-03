@@ -120,7 +120,7 @@ public class FacebookAuthUser extends BasicOAuth2AuthUser implements
 	public String getPicture() {
 		// According to
 		// https://developers.facebook.com/docs/reference/api/#pictures
-		return String.format("https://graph.facebook.com/%s/picture", getId());
+		return String.format("https://graph.facebook.com/%s/picture/?type=large", getId());
 	}
 
 	public Locale getLocale() {
